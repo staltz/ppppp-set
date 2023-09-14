@@ -1,103 +1,101 @@
-const test = require('tape')
-const path = require('path')
-const os = require('os')
+const test = require('node:test')
+const assert = require('node:assert')
+const path = require('node:path')
+const os = require('node:os')
 const rimraf = require('rimraf')
-const SecretStack = require('secret-stack')
-const FeedV1 = require('ppppp-db/feed-v1')
-const caps = require('ssb-caps')
-const p = require('util').promisify
-const { generateKeypair } = require('./util')
+const p = require('node:util').promisify
+const { createPeer } = require('./util')
+const Keypair = require('ppppp-keypair')
 
 const DIR = path.join(os.tmpdir(), 'ppppp-set')
 rimraf.sync(DIR)
 
-const aliceKeys = generateKeypair('alice')
-const who = aliceKeys.id
+const aliceKeypair = Keypair.generate('ed25519', 'alice')
 
 let peer
+let aliceID
 test('setup', async (t) => {
-  peer = SecretStack({ appKey: caps.shs })
-    .use(require('ppppp-db'))
-    .use(require('ssb-box'))
-    .use(require('../lib'))
-    .call(null, {
-      keys: aliceKeys,
-      path: DIR,
-    })
+  peer = createPeer({ keypair: aliceKeypair, path: DIR })
 
   await peer.db.loaded()
+
+  aliceID = await p(peer.db.account.create)({
+    domain: 'account',
+    _nonce: 'alice',
+  })
+  await p(peer.set.load)(aliceID)
 })
 
-function lastMsgHash() {
+function lastMsgID() {
   let last
   for (const item of peer.db.records()) {
     last = item
   }
-  return last.hash
+  return last.id
 }
 
 let add1, add2, del1, add3, del2
 test('Set add(), del(), has()', async (t) => {
   // Add 1st
-  t.false(peer.set.has(who, 'follows', '1st'), 'doesnt have 1st')
-  t.ok(await p(peer.set.add)(who, 'follows', '1st'), 'add 1st')
-  t.true(peer.set.has(who, 'follows', '1st'), 'has 1st')
-  add1 = lastMsgHash()
-  t.deepEquals(
-    peer.set.getItemRoots(who, 'follows'),
+  assert.equal(peer.set.has(aliceID, 'follows', '1st'), false, 'doesnt have 1st')
+  assert(await p(peer.set.add)(aliceID, 'follows', '1st'), 'add 1st')
+  assert.equal(peer.set.has(aliceID, 'follows', '1st'), true, 'has 1st')
+  add1 = lastMsgID()
+  assert.deepEqual(
+    peer.set.getItemRoots(aliceID, 'follows'),
     { '1st': [add1] },
     'itemRoots'
   )
 
   // Add 2nd
-  t.false(peer.set.has(who, 'follows', '2nd'), 'doesnt have 2nd')
-  t.ok(await p(peer.set.add)(who, 'follows', '2nd'), 'add 2nd')
-  t.true(peer.set.has(who, 'follows', '2nd'), 'has 2nd')
-  add2 = lastMsgHash()
-  t.deepEquals(
-    peer.set.getItemRoots(who, 'follows'),
+  assert.equal(peer.set.has(aliceID, 'follows', '2nd'), false, 'doesnt have 2nd')
+  assert(await p(peer.set.add)(aliceID, 'follows', '2nd'), 'add 2nd')
+  assert.equal(peer.set.has(aliceID, 'follows', '2nd'), true, 'has 2nd')
+  add2 = lastMsgID()
+  assert.deepEqual(
+    peer.set.getItemRoots(aliceID, 'follows'),
     { '1st': [add1], '2nd': [add2] },
     'itemRoots'
   )
 
   // Del 1st
-  t.true(peer.set.has(who, 'follows', '1st'), 'has 1st')
-  t.ok(await p(peer.set.del)(who, 'follows', '1st'), 'del 1st')
-  t.false(peer.set.has(who, 'follows', '1st'), 'doesnt have 1st')
-  del1 = lastMsgHash()
-  t.deepEquals(
-    peer.set.getItemRoots(who, 'follows'),
+  assert.equal(peer.set.has(aliceID, 'follows', '1st'), true, 'has 1st')
+  assert(await p(peer.set.del)(aliceID, 'follows', '1st'), 'del 1st')
+  assert.equal(peer.set.has(aliceID, 'follows', '1st'), false, 'doesnt have 1st')
+  del1 = lastMsgID()
+  assert.deepEqual(
+    peer.set.getItemRoots(aliceID, 'follows'),
     { '1st': [del1], '2nd': [add2] },
     'itemRoots'
   )
 
   // Add 3rd
-  t.false(peer.set.has(who, 'follows', '3rd'), 'doesnt have 3rd')
-  t.ok(await p(peer.set.add)(who, 'follows', '3rd'), 'add 3rd')
-  t.true(peer.set.has(who, 'follows', '3rd'), 'has 3rd')
-  add3 = lastMsgHash()
-  t.deepEquals(
-    peer.set.getItemRoots(who, 'follows'),
+  assert.equal(peer.set.has(aliceID, 'follows', '3rd'), false, 'doesnt have 3rd')
+  assert(await p(peer.set.add)(aliceID, 'follows', '3rd'), 'add 3rd')
+  assert.equal(peer.set.has(aliceID, 'follows', '3rd'), true, 'has 3rd')
+  add3 = lastMsgID()
+  assert.deepEqual(
+    peer.set.getItemRoots(aliceID, 'follows'),
     { '3rd': [add3], '2nd': [add2] },
     'itemRoots'
   )
 
   // Del 2nd
-  t.true(peer.set.has(who, 'follows', '2nd'), 'has 2nd')
-  t.ok(await p(peer.set.del)(who, 'follows', '2nd'), 'del 2nd') // msg seq 4
-  t.false(peer.set.has(who, 'follows', '2nd'), 'doesnt have 2nd')
-  del2 = lastMsgHash()
-  t.deepEquals(
-    peer.set.getItemRoots(who, 'follows'),
+  assert.equal(peer.set.has(aliceID, 'follows', '2nd'), true, 'has 2nd')
+  assert(await p(peer.set.del)(aliceID, 'follows', '2nd'), 'del 2nd') // msg seq 4
+  assert.equal(peer.set.has(aliceID, 'follows', '2nd'), false, 'doesnt have 2nd')
+  del2 = lastMsgID()
+  assert.deepEqual(
+    peer.set.getItemRoots(aliceID, 'follows'),
     { '3rd': [add3], '2nd': [del2] },
     'itemRoots'
   )
 
   // Del 2nd (idempotent)
-  t.notOk(await p(peer.set.del)(who, 'follows', '2nd'), 'del 2nd idempotent')
-  t.false(peer.set.has(who, 'follows', '2nd'), 'doesnt have 2nd')
-  t.deepEquals(
-    peer.set.getItemRoots(who, 'follows'),
+  assert.equal(await p(peer.set.del)(aliceID, 'follows', '2nd'), false, 'del 2nd idempotent')
+  assert.equal(peer.set.has(aliceID, 'follows', '2nd'), false, 'doesnt have 2nd')
+  assert.deepEqual(
+    peer.set.getItemRoots(aliceID, 'follows'),
     { '3rd': [add3], '2nd': [del2] },
     'itemRoots'
   )
@@ -105,44 +103,44 @@ test('Set add(), del(), has()', async (t) => {
 
 let add4, add5
 test('Set values()', async (t) => {
-  t.ok(await p(peer.set.add)(who, 'follows', '4th'), 'add 4th')
-  add4 = lastMsgHash()
-  t.ok(await p(peer.set.add)(who, 'follows', '5th'), 'add 5th')
-  add5 = lastMsgHash()
+  assert(await p(peer.set.add)(aliceID, 'follows', '4th'), 'add 4th')
+  add4 = lastMsgID()
+  assert(await p(peer.set.add)(aliceID, 'follows', '5th'), 'add 5th')
+  add5 = lastMsgID()
 
   const expected = new Set(['3rd', '4th', '5th'])
-  for (const item of peer.set.values(who, 'follows')) {
-    t.true(expected.has(item), 'values() item')
+  for (const item of peer.set.values(aliceID, 'follows')) {
+    assert.equal(expected.has(item), true, 'values() item')
     expected.delete(item)
   }
-  t.equals(expected.size, 0, 'all items')
+  assert.equal(expected.size, 0, 'all items')
 })
 
 test('predsl Set squeeze', async (t) => {
-  t.deepEquals(
-    peer.set.getItemRoots(who, 'follows'),
+  assert.deepEqual(
+    peer.set.getItemRoots(aliceID, 'follows'),
     { '3rd': [add3], '4th': [add4], '5th': [add5] },
     'itemRoots before squeeze'
   )
 
-  t.equals(peer.set._squeezePotential('follows'), 3, 'squeezePotential=3')
+  assert.equal(peer.set._squeezePotential('follows'), 3, 'squeezePotential=3')
 
-  t.true(await p(peer.set.squeeze)(who, 'follows'), 'squeezed')
-  const squeezed = lastMsgHash()
+  assert.equal(await p(peer.set.squeeze)(aliceID, 'follows'), true, 'squeezed')
+  const squeezed = lastMsgID()
 
-  t.equals(peer.set._squeezePotential('follows'), 0, 'squeezePotential=0')
+  assert.equal(peer.set._squeezePotential('follows'), 0, 'squeezePotential=0')
 
-  t.deepEquals(
-    peer.set.getItemRoots(who, 'follows'),
+  assert.deepEqual(
+    peer.set.getItemRoots(aliceID, 'follows'),
     { '3rd': [squeezed], '4th': [squeezed], '5th': [squeezed] },
     'itemRoots after squeeze'
   )
 
-  t.false(await p(peer.set.squeeze)(who, 'follows'), 'squeeze again idempotent')
-  const squeezed2 = lastMsgHash()
-  t.equals(squeezed, squeezed2, 'squeezed msg hash is same')
+  assert.equal(await p(peer.set.squeeze)(aliceID, 'follows'), false, 'squeeze again idempotent')
+  const squeezed2 = lastMsgID()
+  assert.equal(squeezed, squeezed2, 'squeezed msgID is same')
 })
 
-test('teardown', (t) => {
-  peer.close(t.end)
+test('teardown', async (t) => {
+  await p(peer.close)(true)
 })

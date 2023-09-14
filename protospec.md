@@ -30,10 +30,10 @@ Reducing the tangle above in a topological sort allows you to build an array
 `msg.content` format:
 
 ```typescript
-interface MsgContent {
+interface MsgData {
   add: Array<string>,
   del: Array<string>,
-  supersedes: Array<MsgHash>,
+  supersedes: Array<MsgID>,
 }
 ```
 

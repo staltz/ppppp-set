@@ -25,7 +25,7 @@ test('setup', async (t) => {
   await peer.db.loaded()
 
   aliceID = await p(peer.db.account.create)({
-    domain: 'account',
+    subdomain: 'account',
     _nonce: 'alice',
   })
   await p(peer.set.load)(aliceID)

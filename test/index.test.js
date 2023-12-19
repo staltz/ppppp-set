@@ -18,7 +18,7 @@ let aliceID
 test('setup', async (t) => {
   peer = createPeer({
     keypair: aliceKeypair,
-    db: {path: DIR},
+    db: { path: DIR },
     set: { ghostSpan: 4 },
   })
 
@@ -42,13 +42,17 @@ function lastMsgID() {
 }
 
 let add1, add2, del1, add3, del2
-test('Set add(), del(), has()', async (t) => {
+test('Set add(), del(), has(), watch()', async (t) => {
+  const expectedWatch = [
+    { event: 'add', subdomain: 'follows', value: '1st' },
+    { event: 'add', subdomain: 'follows', value: '2nd' },
+    { event: 'del', subdomain: 'follows', value: '1st' },
+  ]
+  const actualWatch = []
+  const stopWatch = peer.set.watch((ev) => actualWatch.push(ev))
+
   // Add 1st
-  assert.equal(
-    peer.set.has('follows', '1st'),
-    false,
-    'doesnt have 1st'
-  )
+  assert.equal(peer.set.has('follows', '1st'), false, 'doesnt have 1st')
   assert(await p(peer.set.add)('follows', '1st'), 'add 1st')
   assert.equal(peer.set.has('follows', '1st'), true, 'has 1st')
   add1 = lastMsgID()
@@ -59,11 +63,7 @@ test('Set add(), del(), has()', async (t) => {
   )
 
   // Add 2nd
-  assert.equal(
-    peer.set.has('follows', '2nd'),
-    false,
-    'doesnt have 2nd'
-  )
+  assert.equal(peer.set.has('follows', '2nd'), false, 'doesnt have 2nd')
   assert(await p(peer.set.add)('follows', '2nd'), 'add 2nd')
   assert.equal(peer.set.has('follows', '2nd'), true, 'has 2nd')
   add2 = lastMsgID()
@@ -76,11 +76,7 @@ test('Set add(), del(), has()', async (t) => {
   // Del 1st
   assert.equal(peer.set.has('follows', '1st'), true, 'has 1st')
   assert(await p(peer.set.del)('follows', '1st'), 'del 1st')
-  assert.equal(
-    peer.set.has( 'follows', '1st'),
-    false,
-    'doesnt have 1st'
-  )
+  assert.equal(peer.set.has('follows', '1st'), false, 'doesnt have 1st')
   del1 = lastMsgID()
   assert.deepEqual(
     peer.set._getItemRoots('follows'),
@@ -88,14 +84,14 @@ test('Set add(), del(), has()', async (t) => {
     'itemRoots'
   )
 
+  // Check `watch()` results
+  stopWatch()
+  assert.deepEqual(actualWatch, expectedWatch, 'watch() events')
+
   // Add 3rd
-  assert.equal(
-    peer.set.has( 'follows', '3rd'),
-    false,
-    'doesnt have 3rd'
-  )
+  assert.equal(peer.set.has('follows', '3rd'), false, 'doesnt have 3rd')
   assert(await p(peer.set.add)('follows', '3rd'), 'add 3rd')
-  assert.equal(peer.set.has( 'follows', '3rd'), true, 'has 3rd')
+  assert.equal(peer.set.has('follows', '3rd'), true, 'has 3rd')
   add3 = lastMsgID()
   assert.deepEqual(
     peer.set._getItemRoots('follows'),
@@ -104,13 +100,9 @@ test('Set add(), del(), has()', async (t) => {
   )
 
   // Del 2nd
-  assert.equal(peer.set.has( 'follows', '2nd'), true, 'has 2nd')
+  assert.equal(peer.set.has('follows', '2nd'), true, 'has 2nd')
   assert(await p(peer.set.del)('follows', '2nd'), 'del 2nd') // msg seq 4
-  assert.equal(
-    peer.set.has( 'follows', '2nd'),
-    false,
-    'doesnt have 2nd'
-  )
+  assert.equal(peer.set.has('follows', '2nd'), false, 'doesnt have 2nd')
   del2 = lastMsgID()
   assert.deepEqual(
     peer.set._getItemRoots('follows'),
@@ -124,11 +116,7 @@ test('Set add(), del(), has()', async (t) => {
     false,
     'del 2nd idempotent'
   )
-  assert.equal(
-    peer.set.has( 'follows', '2nd'),
-    false,
-    'doesnt have 2nd'
-  )
+  assert.equal(peer.set.has('follows', '2nd'), false, 'doesnt have 2nd')
   assert.deepEqual(
     peer.set._getItemRoots('follows'),
     { '3rd': [add3], '2nd': [del2] },
@@ -144,7 +132,7 @@ test('Set values()', async (t) => {
   add5 = lastMsgID()
 
   const expected = new Set(['3rd', '4th', '5th'])
-  for (const item of peer.set.values( 'follows')) {
+  for (const item of peer.set.values('follows')) {
     assert.equal(expected.has(item), true, 'values() item')
     expected.delete(item)
   }

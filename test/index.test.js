@@ -19,7 +19,7 @@ test('setup', async (t) => {
   peer = createPeer({
     keypair: aliceKeypair,
     db: { path: DIR },
-    set: { ghostSpan: 4 },
+    set: { ghostSpan: 40 },
   })
 
   await peer.db.loaded()
@@ -30,6 +30,7 @@ test('setup', async (t) => {
   })
   await p(peer.set.load)(aliceID)
 
+  peer.set.setGhostSpan(4)
   assert.equal(peer.set.getGhostSpan(), 4, 'getGhostSpan')
 })
 

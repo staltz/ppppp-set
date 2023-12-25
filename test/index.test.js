@@ -3,7 +3,7 @@ const assert = require('node:assert')
 const path = require('node:path')
 const os = require('node:os')
 const rimraf = require('rimraf')
-const MsgV3 = require('ppppp-db/msg-v3')
+const MsgV4 = require('ppppp-db/msg-v4')
 const p = require('node:util').promisify
 const { createPeer } = require('./util')
 const Keypair = require('ppppp-keypair')
@@ -170,8 +170,8 @@ test('predsl Set squeeze', async (t) => {
 })
 
 test('Set isGhostable', (t) => {
-  const moot = MsgV3.createMoot(aliceID, 'set_v1__follows', aliceKeypair)
-  const mootID = MsgV3.getMsgID(moot)
+  const moot = MsgV4.createMoot(aliceID, 'set_v1__follows', aliceKeypair)
+  const mootID = MsgV4.getMsgID(moot)
 
   assert.equal(mootID, peer.set.getFeedID('follows'), 'getFeedID')
 

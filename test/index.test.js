@@ -17,8 +17,10 @@ let peer
 let aliceID
 test('setup', async (t) => {
   peer = createPeer({
-    keypair: aliceKeypair,
-    db: { path: DIR },
+    global: {
+      keypair: aliceKeypair,
+      path: DIR,
+    },
     set: { ghostSpan: 40 },
   })
 
